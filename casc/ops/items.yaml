@@ -1,0 +1,115 @@
+removeStrategy:
+  rbac: SYNC
+  items: NONE
+items:
+- kind: pipeline
+  name: backend-build
+  concurrentBuild: true
+  definition:
+    cpsFlowDefinition:
+      sandbox: false
+      script: |
+        // Uses Declarative syntax to run commands inside a container.
+        pipeline {
+            agent {
+                kubernetes {
+                    // Rather than inline YAML, in a multibranch Pipeline you could use: yamlFile 'jenkins-pod.yaml'
+                    // Or, to avoid YAML:
+                    // containerTemplate {
+                    //     name 'shell'
+                    //     image 'ubuntu'
+                    //     command 'sleep'
+                    //     args 'infinity'
+                    // }
+                    yaml '''
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: shell
+            image: ubuntu
+            command:
+            - sleep
+            args:
+            - infinity
+        '''
+                    // Can also wrap individual steps:
+                    // container('shell') {
+                    //     sh 'hostname'
+                    // }
+                    defaultContainer 'shell'
+                }
+            }
+            stages {
+                stage('Main') {
+                    steps {
+                        echo 'building backend'
+                        publishEvent simpleEvent('backend-built')
+                    }
+                }
+            }
+        }
+  description: ''
+  disabled: false
+  displayName: backend-build
+  resumeBlocked: false
+- kind: pipeline
+  name: provision-cluster-svc-a
+  concurrentBuild: true
+  definition:
+    cpsFlowDefinition:
+      sandbox: true
+      script: |
+        // Uses Declarative syntax to run commands inside a container.
+        pipeline {
+            agent {
+                kubernetes {
+                    // Rather than inline YAML, in a multibranch Pipeline you could use: yamlFile 'jenkins-pod.yaml'
+                    // Or, to avoid YAML:
+                    // containerTemplate {
+                    //     name 'shell'
+                    //     image 'ubuntu'
+                    //     command 'sleep'
+                    //     args 'infinity'
+                    // }
+                    yaml '''
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: shell
+            image: ubuntu
+            command:
+            - sleep
+            args:
+            - infinity
+        '''
+                    // Can also wrap individual steps:
+                    // container('shell') {
+                    //     sh 'hostname'
+                    // }
+                    defaultContainer 'shell'
+                }
+            }
+            triggers {
+                eventTrigger simpleMatch("backend-built")
+            }
+            stages {
+                stage('Main') {
+                    steps {
+                        echo 'provision infrastructure for application'
+                    }
+                }
+            }
+        }
+  description: ''
+  disabled: false
+  displayName: provision-cluster-svc-a
+  properties:
+  - pipelineTriggers:
+      triggers:
+      - eventTrigger:
+          condition:
+            simpleMatch:
+              event: backend-built
+  resumeBlocked: false
